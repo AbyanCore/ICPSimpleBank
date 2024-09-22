@@ -1,3 +1,6 @@
 service : {
-    "greet": (text) -> (text) query;
+    "make_account": (text) -> (text);          // arg1 : Password
+    "account_info": (text) -> (text);           // arg1 : Password
+    "check_account": (text) -> (text);          // arg1 : Destination Id
+    "transfer_money": (text, float64, text) -> (text);  // arg1: Password, arg2: Destination Id
 }
