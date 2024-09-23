@@ -1,6 +1,10 @@
+type Result = variant { Ok: text; Err: text };
+
 service : {
-    "make_account": (text) -> (text);          // arg1 : Password
-    "account_info": (text) -> (text);           // arg1 : Password
-    "check_account": (text) -> (text);          // arg1 : Destination Id
-    "transfer_money": (text, float64, text) -> (text);  // arg1: Password, arg2: Destination Id
+    "make_account": (text) -> (Result);  // arg1: Password (must be at least 8 characters)
+    "account_info": (text) -> (Result);  // arg1: Password
+    "check_account": (text) -> (Result); // arg1: Destination Account ID
+    "transfer_money": (text, float64, text) -> (Result);  // arg1: Password, arg2: Amount, arg3: Destination Account ID
+    "delete_account": (text) -> (Result); // arg1: Password
+    "update_password": (text, text) -> (Result);  // arg1: Old Password, arg2: New Password (min 8 characters)
 }

@@ -88,25 +88,83 @@ $ dfx deploy
 
 Utilize tools like `dfx` or Candid UI to interact with the canister's functions:
 
-* **Create an account:**
-   ```
-   dfx canister call simple_bank make_account "(password)"
-   ```
+### 1. Create an Account
 
-* **Retrieve account information:**
-   ```
-   dfx canister call simple_bank account_info "(password)"
-   ```
+This function allows a user to create a new account by providing a password. The password must be at least 8 characters long.
 
-* **Verify account existence:**
-   ```
-   dfx canister call simple_bank check_account "(destination_account_id)"
-   ```
+```bash
+dfx canister call simple_bank make_account "(\"your_password\")"
+```
 
-* **Transfer funds:**
-   ```
-   dfx canister call simple_bank transfer_money "(password, amount, destination_account_id)"
-   ```
+**Response:**
+
+- **Success**: `Ok("Account created successfully. ID: <account_id>")`
+- **Failure**: `Err("Password must be at least 8 characters")`
+
+### 2. Retrieve Account Information
+
+Retrieve account information using the account password.
+
+```bash
+dfx canister call simple_bank account_info "(\"your_password\")"
+```
+
+**Response:**
+
+- **Success**: `Ok("Account ID: <id>, Balance: <balance>")`
+- **Failure**: `Err("Account not found")`
+
+### 3. Check Account Existence
+
+Verify if an account exists by providing the destination account ID.
+
+```bash
+dfx canister call simple_bank check_account "(\"destination_account_id\")"
+```
+
+**Response:**
+
+- **Success**: `Ok("Account exists")`
+- **Failure**: `Err("Account does not exist")`
+
+### 4. Transfer Funds
+
+Transfer funds from your account to a destination account by providing your password, the amount to transfer, and the destination account ID.
+
+```bash
+dfx canister call simple_bank transfer_money "(\"your_password\", <amount>, \"destination_account_id\")"
+```
+
+**Response:**
+
+- **Success**: `Ok("Transferred <amount> successfully. Source new balance: <balance>")`
+- **Failure**: `Err("Transfer failed. Either account not found, incorrect password, or insufficient balance")`
+
+### 5. Delete Account
+
+Delete your account using your password.
+
+```bash
+dfx canister call simple_bank delete_account "(\"your_password\")"
+```
+
+**Response:**
+
+- **Success**: `Ok("Account deleted successfully")`
+- **Failure**: `Err("Account not found")`
+
+### 6. Update Password
+
+Update the password for your account by providing the old password and the new password (minimum of 8 characters).
+
+```bash
+dfx canister call simple_bank update_password "(\"old_password\", \"new_password\")"
+```
+
+**Response:**
+
+- **Success**: `Ok("Password updated successfully")`
+- **Failure**: `Err("Account not found, Password must be at least 8 characters or incorrect password")`
 
 ### 📝 Important Notes
 

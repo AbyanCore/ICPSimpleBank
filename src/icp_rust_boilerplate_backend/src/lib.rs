@@ -53,9 +53,24 @@ fn update_state(new_state: State) {
     storage::stable_save((new_state,)).expect("Failed to save state");
 }
 
+// Helper functions for validation
+fn validate_password(password: &String) -> Result<(), String> {
+    if password.len() < 8 {
+        Err("Password must be at least 8 characters long".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_amount(amount: f64) -> Result<(), String> {
+    if amount <= 0.0 { Err("Amount must be greater than 0".to_string()) } else { Ok(()) }
+}
+
 // Create a new account
 #[update]
-fn make_account(password: String) -> String {
+fn make_account(password: String) -> Result<String, String> {
+    validate_password(&password)?;
+
     let mut state = get_state();
     let random_id = State::generate_random_string();
 
@@ -68,36 +83,38 @@ fn make_account(password: String) -> String {
     state.accounts.insert(random_id.clone(), account);
     update_state(state);
 
-    format!("Account created successfully. ID: {}", random_id)
+    Ok(format!("Account created successfully. ID: {}", random_id))
 }
 
 // Query account info
 #[query]
-fn account_info(password: String) -> String {
+fn account_info(password: String) -> Result<String, String> {
     let state = get_state();
 
     let account = state.accounts.values().find(|acc| acc.password == password);
     match account {
-        Some(acc) => format!("Account ID: {}, Balance: {}", acc.id, acc.balance),
-        None => "Account not found".to_string(),
+        Some(acc) => Ok(format!("Account ID: {}, Balance: {}", acc.id, acc.balance)),
+        None => Err("Account not found".to_string()),
     }
 }
 
 // Check if account exists by destination ID
 #[query]
-fn check_account(dest_id: String) -> String {
+fn check_account(dest_id: String) -> Result<String, String> {
     let state = get_state();
 
     if state.accounts.contains_key(&dest_id) {
-        "Account exists".to_string()
+        Ok("Account exists".to_string())
     } else {
-        "Account does not exist".to_string()
+        Err("Account does not exist".to_string())
     }
 }
 
 // Transfer money between accounts
 #[update]
-fn transfer_money(password: String, amount: f64, dest_id: String) -> String {
+fn transfer_money(password: String, amount: f64, dest_id: String) -> Result<String, String> {
+    validate_amount(amount)?;
+
     let mut state = get_state();
 
     // Find the source account's ID by matching the password
@@ -119,7 +136,7 @@ fn transfer_money(password: String, amount: f64, dest_id: String) -> String {
                     // Deduct the amount from the source account
                     src.balance -= amount;
                 } else {
-                    return "Insufficient balance".to_string();
+                    return Err("Insufficient balance".to_string());
                 }
                 src_balance = src.balance;
             }
@@ -133,8 +150,50 @@ fn transfer_money(password: String, amount: f64, dest_id: String) -> String {
             // Save updated state
             update_state(state);
 
-            format!("Transferred {} successfully. Source new balance: {}", amount, src_balance)
+            Ok(format!("Transferred {} successfully. Source new balance: {}", amount, src_balance))
         }
-        _ => "Transfer failed. Either source or destination account not found.".to_string(),
+        _ => Err("Transfer failed. Either source or destination account not found.".to_string()),
     }
 }
+
+// Delete account
+#[update]
+fn delete_account(password: String) -> Result<String, String> {
+    let mut state = get_state();
+
+    // Find the account's ID by matching the password
+    let account_id = state.accounts
+        .iter()
+        .find(|(_, acc)| acc.password == password)
+        .map(|(id, _)| id.clone());
+
+    match account_id {
+        Some(acc_id) => {
+            state.accounts.remove(&acc_id);
+            update_state(state);
+            Ok("Account deleted successfully".to_string())
+        }
+        None => Err("Account not found".to_string()),
+    }
+}
+
+// Update password
+#[update]
+fn update_password(old_password: String, new_password: String) -> Result<String, String> {
+    validate_password(&new_password)?;
+
+    let mut state = get_state();
+
+    let account = state.accounts.values_mut().find(|acc| acc.password == old_password);
+
+    match account {
+        Some(acc) => {
+            acc.password = new_password;
+            update_state(state);
+            Ok("Password updated successfully".to_string())
+        }
+        None => Err("Incorrect old password".to_string()),
+    }
+}
+
+ic_cdk::export_candid!();
