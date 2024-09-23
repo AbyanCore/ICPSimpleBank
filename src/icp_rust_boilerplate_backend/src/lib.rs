@@ -113,47 +113,53 @@ fn check_account(dest_id: String) -> Result<String, String> {
 // Transfer money between accounts
 #[update]
 fn transfer_money(password: String, amount: f64, dest_id: String) -> Result<String, String> {
+    // Validate the transfer amount
     validate_amount(amount)?;
 
     let mut state = get_state();
 
     // Find the source account's ID by matching the password
-    let source_account_id = state.accounts
-        .iter()
-        .find(|(_, acc)| acc.password == password)
-        .map(|(id, _)| id.clone());
+    let source_account_id = state.accounts.iter().find_map(|(id, acc)| {
+        if acc.password == password { Some(id.clone()) } else { None }
+    });
 
     // Check if the destination account exists by its ID
-    let dest_account_id = state.accounts.get(&dest_id).map(|acc| acc.id.clone());
+    let dest_account_exists = state.accounts.contains_key(&dest_id);
 
-    match (source_account_id, dest_account_id) {
-        (Some(src_id), Some(dest_id)) => {
-            let src_balance;
-            {
-                let src = state.accounts.get_mut(&src_id).unwrap();
-                // Check if the source has sufficient balance
-                if src.balance >= amount {
-                    // Deduct the amount from the source account
-                    src.balance -= amount;
-                } else {
-                    return Err("Insufficient balance".to_string());
-                }
-                src_balance = src.balance;
-            }
-
-            {
-                let dest = state.accounts.get_mut(&dest_id).unwrap();
-                // Add the amount to the destination account
-                dest.balance += amount;
-            }
-
-            // Save updated state
-            update_state(state);
-
-            Ok(format!("Transferred {} successfully. Source new balance: {}", amount, src_balance))
-        }
-        _ => Err("Transfer failed. Either source or destination account not found.".to_string()),
+    // Check for detailed errors
+    if source_account_id.is_none() {
+        return Err("Source account not found".to_string());
     }
+
+    if !dest_account_exists {
+        return Err("Destination account not found.".to_string());
+    }
+
+    let src_id = source_account_id.unwrap();
+
+    {
+        let src = state.accounts.get_mut(&src_id).unwrap();
+        // Check if the source has sufficient balance
+        if src.balance < amount {
+            return Err("Insufficient balance in source account.".to_string());
+        }
+        // Deduct the amount from the source account
+        src.balance -= amount;
+    }
+
+    {
+        let dest = state.accounts.get_mut(&dest_id).unwrap();
+        // Add the amount to the destination account
+        dest.balance += amount;
+    }
+
+    // Save the source account's new balance before updating the state
+    let new_balance = state.accounts.get(&src_id).unwrap().balance;
+
+    // Save updated state
+    update_state(state);
+
+    Ok(format!("Successfully transferred {}. Source new balance: {}", amount, new_balance))
 }
 
 // Delete account
@@ -192,7 +198,7 @@ fn update_password(old_password: String, new_password: String) -> Result<String,
             update_state(state);
             Ok("Password updated successfully".to_string())
         }
-        None => Err("Incorrect old password".to_string()),
+        None => Err("Account not found".to_string()),
     }
 }
 

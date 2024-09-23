@@ -137,8 +137,8 @@ dfx canister call simple_bank transfer_money "(\"your_password\", <amount>, \"de
 
 **Response:**
 
-- **Success**: `Ok("Transferred <amount> successfully. Source new balance: <balance>")`
-- **Failure**: `Err("Transfer failed. Either account not found, incorrect password, or insufficient balance")`
+- **Success**: `Ok("Successfully transferred <amount>. Source new balance: <balance>")`
+- **Failure**: `Err("Source account not found, Destination account not found or Insufficient balance in source account")`
 
 ### 5. Delete Account
 
@@ -164,7 +164,7 @@ dfx canister call simple_bank update_password "(\"old_password\", \"new_password
 **Response:**
 
 - **Success**: `Ok("Password updated successfully")`
-- **Failure**: `Err("Account not found, Password must be at least 8 characters or incorrect password")`
+- **Failure**: `Err("Account not found or Password must be at least 8 characters")`
 
 ### 📝 Important Notes
 
