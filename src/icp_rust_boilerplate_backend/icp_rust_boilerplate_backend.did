@@ -1,6 +1,10 @@
-service : {
-    "make_account": (text) -> (text);          // arg1 : Password
-    "account_info": (text) -> (text);           // arg1 : Password
-    "check_account": (text) -> (text);          // arg1 : Destination Id
-    "transfer_money": (text, float64, text) -> (text);  // arg1: Password, arg2: Destination Id
+type Result = variant { Ok : text; Err : text };
+service : () -> {
+  account_info : (text) -> (Result) query;
+  check_account : (text) -> (Result) query;
+  delete_account : (text) -> (Result);
+  get_balance : (text) -> (Result) query;
+  make_account : (text) -> (Result);
+  transfer_money : (text, float64, text) -> (Result);
+  update_password : (text, text) -> (Result);
 }
