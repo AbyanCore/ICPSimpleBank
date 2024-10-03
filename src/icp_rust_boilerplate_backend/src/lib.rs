@@ -1,13 +1,15 @@
 use ic_cdk::*;
 use ic_cdk::storage;
-use candid::{ CandidType, Deserialize };
+use candid::{CandidType, Deserialize};
 use std::collections::HashMap;
+use std::sync::Mutex;
+use bcrypt::{hash, verify};
 
 // Account structure
 #[derive(Clone, CandidType, Deserialize)]
 struct Account {
     id: String,
-    password: String,
+    password_hash: String,
     balance: f64,
 }
 
@@ -33,8 +35,10 @@ impl State {
 // Initialize the state storage using IC's storage API
 #[init]
 fn init() {
-    let state = State::new();
-    storage::stable_save((state,)).expect("Failed to initialize state");
+    if storage::stable_restore::<(State,)>().is_err() {
+        let state = State::new();
+        storage::stable_save((state,)).expect("Failed to initialize state");
+    }
 }
 
 // Safely retrieve the state, or create a new state if it doesn't exist
@@ -73,10 +77,11 @@ fn make_account(password: String) -> Result<String, String> {
 
     let mut state = get_state();
     let random_id = State::generate_random_string();
+    let password_hash = hash(&password, 4).map_err(|_| "Failed to hash password".to_string())?;
 
     let account = Account {
         id: random_id.clone(),
-        password: password.clone(),
+        password_hash,
         balance: 100.0, // Initial balance
     };
 
@@ -91,7 +96,7 @@ fn make_account(password: String) -> Result<String, String> {
 fn account_info(password: String) -> Result<String, String> {
     let state = get_state();
 
-    let account = state.accounts.values().find(|acc| acc.password == password);
+    let account = state.accounts.values().find(|acc| verify(&password, &acc.password_hash).unwrap_or(false));
     match account {
         Some(acc) => Ok(format!("Account ID: {}, Balance: {}", acc.id, acc.balance)),
         None => Err("Account not found".to_string()),
@@ -120,7 +125,7 @@ fn transfer_money(password: String, amount: f64, dest_id: String) -> Result<Stri
 
     // Find the source account's ID by matching the password
     let source_account_id = state.accounts.iter().find_map(|(id, acc)| {
-        if acc.password == password { Some(id.clone()) } else { None }
+        if verify(&password, &acc.password_hash).unwrap_or(false) { Some(id.clone()) } else { None }
     });
 
     // Check if the destination account exists by its ID
@@ -170,7 +175,7 @@ fn delete_account(password: String) -> Result<String, String> {
     // Find the account's ID by matching the password
     let account_id = state.accounts
         .iter()
-        .find(|(_, acc)| acc.password == password)
+        .find(|(_, acc)| verify(&password, &acc.password_hash).unwrap_or(false))
         .map(|(id, _)| id.clone());
 
     match account_id {
@@ -190,11 +195,11 @@ fn update_password(old_password: String, new_password: String) -> Result<String,
 
     let mut state = get_state();
 
-    let account = state.accounts.values_mut().find(|acc| acc.password == old_password);
+    let account = state.accounts.values_mut().find(|acc| verify(&old_password, &acc.password_hash).unwrap_or(false));
 
     match account {
         Some(acc) => {
-            acc.password = new_password;
+            acc.password_hash = hash(&new_password, 4).map_err(|_| "Failed to hash password".to_string())?;
             update_state(state);
             Ok("Password updated successfully".to_string())
         }
